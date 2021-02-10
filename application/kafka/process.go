@@ -32,7 +32,6 @@ func (k *KafkaProcessor) Consume() {
 		"group.id":          os.Getenv("kafkaConsumerGroupId"),
 		"auto.offset.reset": "earliest",
 	}
-
 	c, err := ckafka.NewConsumer(configMap)
 
 	if err != nil {
@@ -45,24 +44,24 @@ func (k *KafkaProcessor) Consume() {
 	fmt.Println("kafka consumer has been started")
 	for {
 		msg, err := c.ReadMessage(-1)
-
 		if err == nil {
+			fmt.Println(string(msg.Value))
 			k.processMessage(msg)
 		}
 	}
 }
 
 func (k *KafkaProcessor) processMessage(msg *ckafka.Message) {
-	transactionTopic := "transactions"
+	transactionsTopic := "transactions"
 	transactionConfirmationTopic := "transaction_confirmation"
 
 	switch topic := *msg.TopicPartition.Topic; topic {
-	case transactionTopic:
+	case transactionsTopic:
 		k.processTransaction(msg)
 	case transactionConfirmationTopic:
 		k.processTransactionConfirmation(msg)
 	default:
-		fmt.Println("not a valid topic ", string(msg.Value))
+		fmt.Println("not a valid topic", string(msg.Value))
 	}
 }
 
@@ -81,8 +80,8 @@ func (k *KafkaProcessor) processTransaction(msg *ckafka.Message) error {
 		transaction.PixKeyTo,
 		transaction.PixKeyKindTo,
 		transaction.Description,
+		transaction.ID,
 	)
-
 	if err != nil {
 		fmt.Println("error registering transaction", err)
 		return err
@@ -90,7 +89,6 @@ func (k *KafkaProcessor) processTransaction(msg *ckafka.Message) error {
 
 	topic := "bank" + createdTransaction.PixKeyTo.Account.Bank.Code
 	transaction.ID = createdTransaction.ID
-
 	transaction.Status = model.TransactionPending
 	transactionJson, err := transaction.ToJson()
 
@@ -102,7 +100,6 @@ func (k *KafkaProcessor) processTransaction(msg *ckafka.Message) error {
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
